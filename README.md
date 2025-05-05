@@ -261,31 +261,10 @@ send_email_notification() {
 4. **Review logs** after script execution
 5. **Use strong temporary passwords** that meet your organization's requirements
 
-## 🔄 Contributing
-
-Contributions are welcome! Here's how you can contribute:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-Please make sure your code follows best practices for bash scripting and includes appropriate error handling.
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
 ## 👥 Authors
 
-- **Your Name** - *Initial work*
-
-## 🙏 Acknowledgments
-
-- Linux documentation for user management commands
-- The bash scripting community for best practices and examples
+- **Ishmael Gyamfi**
 
 ---
 
-*This project was created as part of a Linux system administration automation challenge.*
+*This project was created as part of a Linux system administration automation challenge by Amalitech GTP.*
