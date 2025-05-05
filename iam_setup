@@ -1,2 +1,97 @@
 #!/usr/bin/env bash
 
+# iam_setup.sh - Automate Identity and Access Management in Linux
+# Author: Gyamfi Ishmael
+# Date: May 5, 2025
+# Description: Script to automate user and group creation with specific settings
+
+# Configuration
+INPUT_FILE="users.txt"
+LOG_FILE="iam_setup.log"
+TEMP_PASSWORD="AmalitechGTP123"
+
+# Check if running as root
+if [ "$(id -u)" -ne 0 ]; then
+    echo "This script must be run as root" >&2
+    exit 1
+fi
+
+# Function to log messages
+log_message() {
+    local timestamp=$(date "+%Y-%m-%d %H:%M:%S")
+    echo "[$timestamp] $1" | tee -a "$LOG_FILE"
+}
+
+# Initialize log file
+echo "# IAM Setup Log - Started on $(date)" > "$LOG_FILE"
+log_message "Script started"
+
+# Check if input file exists
+if [ ! -f "$INPUT_FILE" ]; then
+    log_message "ERROR: Input file $INPUT_FILE not found"
+    exit 1
+fi
+
+# Process each line in the input file
+while IFS=, read -r username fullname group || [[ -n "$username" ]]; do
+    # Skip empty lines or comments
+    if [[ -z "$username" || "$username" == \#* ]]; then
+        continue
+    fi
+
+    log_message "Processing user: $username ($fullname) for group: $group"
+
+    # Check if group exists and create if not
+    if ! getent group "$group" > /dev/null; then
+        groupadd "$group"
+        if [ $? -eq 0 ]; then
+            log_message "Created group: $group"
+        else
+            log_message "ERROR: Failed to create group: $group"
+            continue
+        fi
+    else
+        log_message "Group $group already exists"
+    fi
+
+    # Check if user exists
+    if id "$username" &>/dev/null; then
+        log_message "User $username already exists"
+    else
+        # Create user with home directory and assign to group
+        useradd -m -c "$fullname" -g "$group" "$username"
+        if [ $? -eq 0 ]; then
+            log_message "Created user: $username with home directory"
+            
+            # Set temporary password
+            echo "$username:$TEMP_PASSWORD" | chpasswd
+            if [ $? -eq 0 ]; then
+                log_message "Set temporary password for $username"
+                
+                # Force password change on first login
+                chage -d 0 "$username"
+                if [ $? -eq 0 ]; then
+                    log_message "Password change required at next login for $username"
+                else
+                    log_message "ERROR: Failed to set password expiration for $username"
+                fi
+            else
+                log_message "ERROR: Failed to set password for $username"
+            fi
+            
+            # Set permissions on home directory
+            chmod 700 "/home/$username"
+            if [ $? -eq 0 ]; then
+                log_message "Set permissions 700 on /home/$username"
+            else
+                log_message "ERROR: Failed to set permissions on /home/$username"
+            fi
+        else
+            log_message "ERROR: Failed to create user: $username"
+        fi
+    fi
+done < "$INPUT_FILE"
+
+log_message "Script completed successfully"
+echo "IAM setup completed. Check $LOG_FILE for details."
+exit 0
