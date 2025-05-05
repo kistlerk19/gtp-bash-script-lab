@@ -1,0 +1,21 @@
+# IAM Setup Log - Started on Sat May 3 10:15:32 EDT 2025
+[2025-05-03 10:15:32] Script started
+[2025-05-03 10:15:32] Processing user: jdoe (John Doe) for group: engineering
+[2025-05-03 10:15:32] Created group: engineering
+[2025-05-03 10:15:33] Created user: jdoe with home directory
+[2025-05-03 10:15:33] Set temporary password for jdoe
+[2025-05-03 10:15:33] Password change required at next login for jdoe
+[2025-05-03 10:15:33] Set permissions 700 on /home/jdoe
+[2025-05-03 10:15:33] Processing user: asmith (Alice Smith) for group: engineering
+[2025-05-03 10:15:33] Group engineering already exists
+[2025-05-03 10:15:33] Created user: asmith with home directory
+[2025-05-03 10:15:33] Set temporary password for asmith
+[2025-05-03 10:15:34] Password change required at next login for asmith
+[2025-05-03 10:15:34] Set permissions 700 on /home/asmith
+[2025-05-03 10:15:34] Processing user: mjones (Mike Jones) for group: design
+[2025-05-03 10:15:34] Created group: design
+[2025-05-03 10:15:34] Created user: mjones with home directory
+[2025-05-03 10:15:35] Set temporary password for mjones
+[2025-05-03 10:15:35] Password change required at next login for mjones
+[2025-05-03 10:15:35] Set permissions 700 on /home/mjones
+[2025-05-03 10:15:35] Script completed successfully
