@@ -1,0 +1,217 @@
+#!/usr/bin/env bash
+
+# iam_cleanup.sh - Script to remove users and groups created by enhanced_iam_setup.sh
+# Author: Ishmael Gyamfi
+# Date: May 7, 2025
+# Description: Safely remove users and their home directories, then optionally remove groups
+
+# Default Configuration
+INPUT_FILE="users.csv"
+LOG_FILE="cleanup.log"
+REMOVE_HOME=true
+REMOVE_GROUPS=false
+BACKUP_DIR="/tmp/user_backups_$(date +%Y%m%d_%H%M%S)"
+BACKUP_ENABLED=false
+INTERACTIVE=false
+
+# Display usage information
+usage() {
+    echo "Usage: $0 [OPTIONS]"
+    echo "Options:"
+    echo "  -f, --file FILE      Specify input CSV file (default: users.csv)"
+    echo "  -l, --log FILE       Specify log file (default: cleanup.log)"
+    echo "  -g, --groups         Also remove groups after removing users (default: false)"
+    echo "  -k, --keep-home      Keep home directories (default: home dirs are removed)"
+    echo "  -b, --backup         Backup home directories before removal"
+    echo "  -i, --interactive    Ask for confirmation before each deletion"
+    echo "  -h, --help           Display this help message"
+    exit 1
+}
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -f|--file)
+            INPUT_FILE="$2"
+            shift 2
+            ;;
+        -l|--log)
+            LOG_FILE="$2"
+            shift 2
+            ;;
+        -g|--groups)
+            REMOVE_GROUPS=true
+            shift
+            ;;
+        -k|--keep-home)
+            REMOVE_HOME=false
+            shift
+            ;;
+        -b|--backup)
+            BACKUP_ENABLED=true
+            shift
+            ;;
+        -i|--interactive)
+            INTERACTIVE=true
+            shift
+            ;;
+        -h|--help)
+            usage
+            ;;
+        *)
+            echo "Unknown option: $1"
+            usage
+            ;;
+    esac
+done
+
+# Check if running as root
+if [ "$(id -u)" -ne 0 ]; then
+    echo "This script must be run as root" >&2
+    exit 1
+fi
+
+# Function to log messages
+log_message() {
+    local timestamp=$(date "+%Y-%m-%d %H:%M:%S")
+    echo "[$timestamp] $1" | tee -a "$LOG_FILE"
+}
+
+# Function to get confirmation in interactive mode
+confirm_action() {
+    if [ "$INTERACTIVE" = true ]; then
+        read -p "$1 (y/n): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            return 1
+        fi
+    fi
+    return 0
+}
+
+# Function to backup home directory
+backup_home() {
+    local username="$1"
+    
+    if [ "$BACKUP_ENABLED" = true ] && [ -d "/home/$username" ]; then
+        mkdir -p "$BACKUP_DIR" 2>/dev/null
+        log_message "Backing up /home/$username to $BACKUP_DIR/$username.tar.gz"
+        tar -czf "$BACKUP_DIR/$username.tar.gz" -C /home "$username" 2>/dev/null
+        if [ $? -eq 0 ]; then
+            log_message "Backup of /home/$username completed"
+        else
+            log_message "WARNING: Backup of /home/$username failed"
+        fi
+    fi
+}
+
+# Function to remove a user
+remove_user() {
+    local username="$1"
+    
+    if id "$username" &>/dev/null; then
+        if confirm_action "Delete user $username?"; then
+            # Backup home directory if enabled
+            backup_home "$username"
+            
+            # Remove user with or without home directory
+            if [ "$REMOVE_HOME" = true ]; then
+                log_message "Removing user $username and home directory"
+                userdel -r "$username" 2>/dev/null
+            else
+                log_message "Removing user $username (keeping home directory)"
+                userdel "$username" 2>/dev/null
+            fi
+            
+            if [ $? -eq 0 ]; then
+                log_message "Successfully removed user $username"
+            else
+                log_message "ERROR: Failed to remove user $username"
+            fi
+        else
+            log_message "Skipping deletion of user $username (user choice)"
+        fi
+    else
+        log_message "User $username does not exist, skipping"
+    fi
+}
+
+# Function to remove a group
+remove_group() {
+    local group="$1"
+    
+    if getent group "$group" > /dev/null; then
+        # Check if the group has any members
+        local members=$(getent group "$group" | cut -d: -f4)
+        if [ -n "$members" ]; then
+            log_message "WARNING: Group $group still has members: $members. Not removing."
+            return 1
+        fi
+        
+        if confirm_action "Delete group $group?"; then
+            log_message "Removing group $group"
+            groupdel "$group" 2>/dev/null
+            
+            if [ $? -eq 0 ]; then
+                log_message "Successfully removed group $group"
+            else
+                log_message "ERROR: Failed to remove group $group"
+            fi
+        else
+            log_message "Skipping deletion of group $group (user choice)"
+        fi
+    else
+        log_message "Group $group does not exist, skipping"
+    fi
+}
+
+# Initialize log file
+echo "# IAM Cleanup Log - Started on $(date)" > "$LOG_FILE"
+log_message "Cleanup script started"
+
+# Check if input file exists
+if [ ! -f "$INPUT_FILE" ]; then
+    log_message "ERROR: Input file $INPUT_FILE not found"
+    exit 1
+fi
+
+# Create backup directory if backups are enabled
+if [ "$BACKUP_ENABLED" = true ]; then
+    mkdir -p "$BACKUP_DIR"
+    log_message "Created backup directory: $BACKUP_DIR"
+fi
+
+# Process each line in the input file to remove users
+while IFS=, read -r username fullname group email || [[ -n "$username" ]]; do
+    # Skip empty lines or comments
+    if [[ -z "$username" || "$username" == \#* || "$username" == "username" ]]; then
+        continue
+    fi
+
+    remove_user "$username"
+done < "$INPUT_FILE"
+
+# If group removal is enabled, process each line again to remove groups
+if [ "$REMOVE_GROUPS" = true ]; then
+    log_message "Starting group removal process"
+    
+    # Create a list of groups to remove (unique groups from the CSV file)
+    groups_list=$(grep -v "^#" "$INPUT_FILE" | grep -v "^username" | cut -d, -f3 | sort | uniq)
+    
+    # Process each group
+    for group in $groups_list; do
+        if [ -n "$group" ]; then
+            remove_group "$group"
+        fi
+    done
+fi
+
+log_message "Cleanup completed"
+
+# Print summary
+if [ "$BACKUP_ENABLED" = true ] && [ -d "$BACKUP_DIR" ]; then
+    echo "Backups of user home directories are stored in $BACKUP_DIR"
+fi
+
+echo "Cleanup completed. Check $LOG_FILE for details."
+exit 0

@@ -1,0 +1,7 @@
+
+.iam_config.env
+*.log
+users.csv
+*.tmp
+*~
+.DS_Store

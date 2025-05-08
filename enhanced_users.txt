@@ -1,0 +1,3 @@
+jdoe,John Doe,engineering,jdoe@company.com
+asmith,Alice Smith,engineering,asmith@company.com
+mjones,Mike Jones,design,mjones@company.com

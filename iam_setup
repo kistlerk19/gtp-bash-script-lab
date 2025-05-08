@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
 
-# iam_setup.sh - Automate Identity and Access Management in Linux
+# iam_setup - Automate Identity and Access Management in Linux
 # Author: Gyamfi Ishmael
 # Date: May 5, 2025
 # Description: Script to automate user and group creation with specific settings
 
 # Configuration
-INPUT_FILE="users.txt"
+INPUT_FILE="users.csv"
 LOG_FILE="iam_setup.log"
 TEMP_PASSWORD="AmalitechGTP123"
 
-# Check if running as root
+# running as root
 if [ "$(id -u)" -ne 0 ]; then
     echo "This script must be run as root" >&2
     exit 1
 fi
 
-# Function to log messages
+# log messages with timestamps
 log_message() {
     local timestamp=$(date "+%Y-%m-%d %H:%M:%S")
     echo "[$timestamp] $1" | tee -a "$LOG_FILE"
@@ -26,22 +26,22 @@ log_message() {
 echo "# IAM Setup Log - Started on $(date)" > "$LOG_FILE"
 log_message "Script started"
 
-# Check if input file exists
+# input file exists
 if [ ! -f "$INPUT_FILE" ]; then
     log_message "ERROR: Input file $INPUT_FILE not found"
     exit 1
 fi
 
-# Process each line in the input file
+
 while IFS=, read -r username fullname group || [[ -n "$username" ]]; do
-    # Skip empty lines or comments
+    # skinping empty lines or comments
     if [[ -z "$username" || "$username" == \#* ]]; then
         continue
     fi
 
     log_message "Processing user: $username ($fullname) for group: $group"
 
-    # Check if group exists and create if not
+    # check if a group exists and create if not
     if ! getent group "$group" > /dev/null; then
         groupadd "$group"
         if [ $? -eq 0 ]; then
@@ -54,7 +54,7 @@ while IFS=, read -r username fullname group || [[ -n "$username" ]]; do
         log_message "Group $group already exists"
     fi
 
-    # Check if user exists
+    # user exists
     if id "$username" &>/dev/null; then
         log_message "User $username already exists"
     else
@@ -79,7 +79,7 @@ while IFS=, read -r username fullname group || [[ -n "$username" ]]; do
                 log_message "ERROR: Failed to set password for $username"
             fi
             
-            # Set permissions on home directory
+            # Seting permissions on home directory
             chmod 700 "/home/$username"
             if [ $? -eq 0 ]; then
                 log_message "Set permissions 700 on /home/$username"
